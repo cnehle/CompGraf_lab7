@@ -20,6 +20,7 @@ namespace CompGraphicsLab06
         /// Текущий многогранник
         /// </summary>
         private Polyhedron curPolyhedron;
+
         public Form1()
         {
             InitializeComponent();
@@ -31,35 +32,108 @@ namespace CompGraphicsLab06
             radioButton1.Checked = true;
             projBox.SelectedIndex = 0;
         }
+
+        /// <summary>
+        /// Создает ребра для осей координат (X, Y, Z)
+        /// </summary>
+        private List<Edge> GetAxesEdges(float length = 200)
+        {
+            Point3D origin = new Point3D(0, 0, 0);
+            Point3D xEnd = new Point3D(length, 0, 0);
+            Point3D yEnd = new Point3D(0, length, 0);
+            Point3D zEnd = new Point3D(0, 0, length);
+
+            return new List<Edge>
+            {
+                new Edge(origin, xEnd), // 0: X-axis (Red)
+                new Edge(origin, yEnd), // 1: Y-axis (Green)
+                new Edge(origin, zEnd)  // 2: Z-axis (Blue)
+            };
+        }
+
+        /// <summary>
+        /// Отрисовывает оси координат
+        /// </summary>
+        private void DrawAxes(float offsetX, float offsetY)
+        {
+            List<Edge> axes3D = GetAxesEdges(600);
+            List<Edge> axesProjected = projection.ProjectEdges(axes3D, projBox.SelectedIndex);
+
+            // X-axis: Red
+            Pen penX = new Pen(Color.Red, 2);
+            // Y-axis: Green
+            Pen penY = new Pen(Color.Green, 2);
+            // Z-axis: Blue
+            Pen penZ = new Pen(Color.Blue, 2);
+
+            // Рисуем X
+            var p1X = axesProjected[0].From.ConvertToPoint();
+            var p2X = axesProjected[0].To.ConvertToPoint();
+            graphics.DrawLine(penX, p1X.X + offsetX, p1X.Y + offsetY, p2X.X + offsetX, p2X.Y + offsetY);
+
+            // Рисуем Y
+            var p1Y = axesProjected[1].From.ConvertToPoint();
+            var p2Y = axesProjected[1].To.ConvertToPoint();
+            graphics.DrawLine(penY, p1Y.X + offsetX, p1Y.Y + offsetY, p2Y.X + offsetX, p2Y.Y + offsetY);
+
+            // Рисуем Z
+            var p1Z = axesProjected[2].From.ConvertToPoint();
+            var p2Z = axesProjected[2].To.ConvertToPoint();
+            graphics.DrawLine(penZ, p1Z.X + offsetX, p1Z.Y + offsetY, p2Z.X + offsetX, p2Z.Y + offsetY);
+        }
+
         private void Draw()
         {
             graphics.Clear(Color.White);
-            // graphics.Clear(Color.White);
-            Random r = new Random();
-            pen = new Pen(Color.FromArgb(r.Next(0, 255), r.Next(0, 255), r.Next(0, 255)), 2);
-            List<Edge> edges = projection.Project(curPolyhedron,projBox.SelectedIndex);
 
-            //Смещение по центру pictureBox
+            // Объявляем centerX и centerY один раз в начале метода
             var centerX = pictureBox1.Width / 2;
             var centerY = pictureBox1.Height / 2;
 
-            //Смещение по центру фигуры
-            //Тоже, конечно, так себе решение, но лучше, чем было
-            var figureLeftX = edges.Min(e => e.From.X < e.To.X ? e.From.X : e.To.X);
-            var figureLeftY = edges.Min(e => e.From.Y < e.To.Y ? e.From.Y : e.To.Y);
-            var figureRightX = edges.Max(e => e.From.X > e.To.X ? e.From.X : e.To.X);
-            var figureRightY = edges.Max(e => e.From.Y > e.To.Y ? e.From.Y : e.To.Y);
-            var figureCenterX = (figureRightX - figureLeftX) / 2;
-            var figureCenterY = (figureRightY - figureLeftY) / 2;
-            //var fixX = centerX - figureCenterX + (figureLeftX < 0 ? Math.Abs(figureLeftX) : -Math.Abs(figureLeftX));
-           // var fixY = centerY - figureCenterY + (figureLeftY < 0 ? Math.Abs(figureLeftY) : -Math.Abs(figureLeftY));
+            // Если многогранник не задан, просто рисуем оси и выходим
+            if (curPolyhedron == null)
+            {
+                DrawAxes(centerX, centerY); // Используем объявленные выше переменные
+                pictureBox1.Invalidate();
+                return;
+            }
 
+            // 1. Проецируем фигуру
+            pen = new Pen(Color.Black, 2);
+            List<Edge> edges = projection.Project(curPolyhedron, projBox.SelectedIndex);
+
+            // 2. Расчет смещения для центрирования
+            // УДАЛЕНЫ ПОВТОРНЫЕ ОБЪЯВЛЕНИЯ var centerX = ... и var centerY = ...
+
+            // Расчет центра фигуры (для смещения)
+            var figureLeftX = edges.Min(e => Math.Min(e.From.X, e.To.X));
+            var figureLeftY = edges.Min(e => Math.Min(e.From.Y, e.To.Y));
+            var figureRightX = edges.Max(e => Math.Max(e.From.X, e.To.X));
+            var figureRightY = edges.Max(e => Math.Max(e.From.Y, e.To.Y));
+
+            // Если фигура невидима (например, все точки схлопнулись), используем 0
+            float figureCenterX = (figureRightX - figureLeftX) / 2;
+            float figureCenterY = (figureRightY - figureLeftY) / 2;
+
+            // Общее смещение, которое применяем и к фигуре, и к осям
+            float offsetX = centerX - figureCenterX;
+            float offsetY = centerY - figureCenterY;
+
+
+            // 3. Рисуем Оси
+            DrawAxes(offsetX, offsetY);
+
+
+            // 4. Рисуем фигуру
             foreach (Edge line in edges)
             {
                 var p1 = (line.From).ConvertToPoint();
                 var p2 = (line.To).ConvertToPoint();
-                graphics.DrawLine(pen, p1.X + centerX - figureCenterX, p1.Y + centerY - figureCenterY, p2.X + centerX - figureCenterX, p2.Y + centerY - figureCenterY);
-               // graphics.DrawLine(pen,p1.X+ fixX, p1.Y+ fixY, p2.X+ fixX, p2.Y+ fixY);
+
+                // Применяем рассчитанное смещение
+                graphics.DrawLine(pen,
+                    p1.X + offsetX, p1.Y + offsetY,
+                    p2.X + offsetX, p2.Y + offsetY);
             }
             pictureBox1.Invalidate();
         }
@@ -396,6 +470,7 @@ namespace CompGraphicsLab06
             else if (rotateOZ.Checked)
                 Affine.rotateCenter(curPolyhedron, 0, 0, (float)rotateAngle.Value);
             else if (rotateOwn.Checked)
+                //"Время пострелять..."(с)
                 Affine.rotateAboutLine(curPolyhedron, (float)rotateAngle.Value, new Edge(float.Parse(rX1.Text), float.Parse(rY1.Text), float.Parse(rZ1.Text),
                     float.Parse(rX2.Text), float.Parse(rY2.Text), float.Parse(rZ2.Text)));
             Draw();

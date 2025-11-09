@@ -172,6 +172,13 @@ namespace CompGraphicsLab06
             float sin = (float)Math.Sin(angle * Math.PI / 180);
             float cos = (float)Math.Cos(angle * Math.PI / 180);
 
+            /* float[,] matr = {
+                 { l*l+cos*(1-l*l), l*(1-cos)*m+n*sin, l*(1-cos)*n-m*sin, 0 },
+                 { l*(1-cos)*m-n*sin, m*m+cos*(1-m*m), m*(1-cos)*n+l*sin, 0 },
+                 { l*(1-cos)*n+m*sin, m*(1-cos)*n-l*sin, n*n+cos*(1-n*n), 0 },
+                 { 0,                    0,              0,               1 }
+             };*/
+
             float[,] matr = { { l*l+cos*(1-l*l),   l*(1-cos)*m-n*sin, l*(1-cos)*n+m*sin, 0 },
                               { l*(1-cos)*m+n*sin, m*m+cos*(1-m*m),   m*(1-cos)*n-l*sin, 0 },
                               { l*(1-cos)*n-m*sin, m*(1-cos)*n+l*sin, n*n+cos*(1-n*n),   0 },

@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Projection.cs
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -39,6 +41,45 @@ namespace CompGraphicsLab06
         }
 
         /// <summary>
+        /// Применяет матрицу проекции к одной точке
+        /// </summary>
+        private Point3D ApplyProjection(Point3D p, float[,] matr)
+        {
+            float[,] tmp = MultMatrix(new float[,] { { p.X, p.Y, p.Z, 1 } }, matr);
+            // Применяем перспективное деление (деление на W-компоненту)
+            return new Point3D(tmp[0, 0] / tmp[0, 3], tmp[0, 1] / tmp[0, 3]);
+        }
+
+        /// <summary>
+        /// Выполняет проекцию для набора ребер (используется для осей)
+        /// </summary>
+        public List<Edge> ProjectEdges(List<Edge> inputEdges, int mode)
+        {
+            float[,] matr;
+            switch (mode)
+            {
+                case 0:
+                    matr = perspective;
+                    break;
+                case 1:
+                    matr = isometric;
+                    break;
+                default:
+                    throw new ArgumentException();
+            }
+
+            List<Edge> projectedEdges = new List<Edge>();
+            foreach (var edge in inputEdges)
+            {
+                Point3D from = ApplyProjection(edge.From, matr);
+                Point3D to = ApplyProjection(edge.To, matr);
+                projectedEdges.Add(new Edge(from, to));
+            }
+            return projectedEdges;
+        }
+
+
+        /// <summary>
         /// Выполняет проекцию
         /// </summary>
         /// <param name="polyhedron">входной многогранник</param>
@@ -63,20 +104,13 @@ namespace CompGraphicsLab06
             // Для каждой вершины обрабатываем её и запускаем обработку смежных с ней
             foreach (Point3D p in polyhedron.Vertexes)
             {
-                // Все многогранники начинаются в (0, 0, 0). Добавляем смещение, чтобы фигуры были примерно по центру
-                Point3D p1 = p;// + new Point3D(250 , 150, 200 );
-                float[,] tmp = MultMatrix(new float[,] { { p1.X, p1.Y, p1.Z, 1 } }, matr);
-                Point3D from = new Point3D(tmp[0, 0] / tmp[0, 3], tmp[0, 1] / tmp[0, 3]);
-
+                Point3D from = ApplyProjection(p, matr);
 
                 // Обработка смежных с вершиной
                 foreach (int index in polyhedron.Adjacency[i])
                 {
-                    // Все многогранники начинаются в (0, 0, 0). Добавляем смещение, чтобы фигуры были примерно по центру
-                    Point3D t = polyhedron.Vertexes[index];// + new Point3D(250 , 150, 200 ); 
-
-                    float[,] tmp1 = MultMatrix(new float[,] { { t.X, t.Y, t.Z, 1 } }, matr);
-                    Point3D to = new Point3D(tmp1[0, 0] / tmp1[0, 3], tmp1[0, 1] / tmp1[0, 3]);
+                    Point3D t = polyhedron.Vertexes[index];
+                    Point3D to = ApplyProjection(t, matr);
                     edges.Add(new Edge(from, to));
                 }
                 i++;

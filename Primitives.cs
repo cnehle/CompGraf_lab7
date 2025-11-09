@@ -149,6 +149,11 @@ namespace CompGraphicsLab06
                 Adjacency.Add(from, new List<int> { to });
             else
                 Adjacency[from].Add(to);
+
+           /* if (!Adjacency.ContainsKey(index2))
+                Adjacency.Add(index2, new List<int> { index1 });
+            else
+                Adjacency[index2].Add(index1);*/
         }
 
         /// <summary>
