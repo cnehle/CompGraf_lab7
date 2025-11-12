@@ -163,28 +163,61 @@ namespace CompGraphicsLab06
             translate(polyhedron, center.X, center.Y, center.Z);
         }
 
-        public static void rotateAboutLine(Polyhedron polyhedron, float angle, Edge line)
-        {
-            var vect = line.To - line.From;
-            var len = Math.Sqrt(Math.Pow(vect.X, 2) + Math.Pow(vect.Y, 2) + Math.Pow(vect.Z, 2));
-            var (l, m, n) = ((float)(vect.X / len), (float)(vect.Y / len), (float)(vect.Z / len));
+public static void rotateAboutLine(Polyhedron polyhedron, float angle, Edge line)
+{
+    // 1. Перенести прямую L в центр координат на –А (-a,-b,-c)
+    Point3D A = line.From;
+    translate(polyhedron, -A.X, -A.Y, -A.Z);
 
-            float sin = (float)Math.Sin(angle * Math.PI / 180);
-            float cos = (float)Math.Cos(angle * Math.PI / 180);
+    // 2. Совместить прямую L с осью Z
+    Point3D direction = line.To - line.From;
+    
+    // Вычисляем углы для совмещения с осью Z
+    // Длина проекции на плоскость XY
+    float lengthXY = (float)Math.Sqrt(direction.X * direction.X + direction.Y * direction.Y);
+    
+    // Угол поворота вокруг оси Z (чтобы спроецировать на плоскость XZ)
+    float angleZ = 0;
+    if (lengthXY > 0.0001f)
+    {
+        angleZ = -(float)(Math.Atan2(direction.Y, direction.X) * 180 / Math.PI);
+    }
 
-            /* float[,] matr = {
-                 { l*l+cos*(1-l*l), l*(1-cos)*m+n*sin, l*(1-cos)*n-m*sin, 0 },
-                 { l*(1-cos)*m-n*sin, m*m+cos*(1-m*m), m*(1-cos)*n+l*sin, 0 },
-                 { l*(1-cos)*n+m*sin, m*(1-cos)*n-l*sin, n*n+cos*(1-n*n), 0 },
-                 { 0,                    0,              0,               1 }
-             };*/
+    // Поворачиваем вокруг Z
+    rotation(polyhedron, 0, 0, angleZ);
 
-            float[,] matr = { { l*l+cos*(1-l*l),   l*(1-cos)*m-n*sin, l*(1-cos)*n+m*sin, 0 },
-                              { l*(1-cos)*m+n*sin, m*m+cos*(1-m*m),   m*(1-cos)*n-l*sin, 0 },
-                              { l*(1-cos)*n-m*sin, m*(1-cos)*n+l*sin, n*n+cos*(1-n*n),   0 },
-                              { 0,                 0,                 0,                 1 }};
+    // Обновляем направление после первого поворота
+    direction = rotatePoint(direction, 0, 0, angleZ);
+    
+    // Угол поворота вокруг оси Y (чтобы совместить с осью Z)
+    float length = (float)Math.Sqrt(direction.X * direction.X + direction.Y * direction.Y + direction.Z * direction.Z);
+    float angleY = 0;
+    if (length > 0.0001f && Math.Abs(direction.X) > 0.0001f)
+    {
+        angleY = -(float)(Math.Atan2(direction.Z, direction.X) * 180 / Math.PI);
+    }
 
-            ChangePolyhedron(polyhedron, matr);
-        }
+    // Поворачиваем вокруг Y
+    rotation(polyhedron, 0, angleY, 0);
+
+    // 3. Выполнить поворот объекта вокруг прямой L (теперь это ось Z)
+    rotation(polyhedron, 0, 0, angle);
+
+    // 4. Выполнить повороты 2 в обратной последовательности на обратные углы
+    rotation(polyhedron, 0, -angleY, 0);  // Обратный поворот вокруг Y
+    rotation(polyhedron, 0, 0, -angleZ);  // Обратный поворот вокруг Z
+
+    // 5. Выполнить перенос на А (a, b, c)
+    translate(polyhedron, A.X, A.Y, A.Z);
+}
+
+// Вспомогательный метод для поворота точки
+private static Point3D rotatePoint(Point3D point, float angleX, float angleY, float angleZ)
+{
+    // Создаем временный полиэдр из одной точки
+    Polyhedron temp = new Polyhedron(new List<Point3D> { point });
+    rotation(temp, angleX, angleY, angleZ);
+    return temp.Vertexes[0];
+}
     }
 }
