@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{68711388-4069-4B24-9EB5-1CAFE938AE0D}</ProjectGuid>
+    <ProjectGuid>{D5CC34BE-DD7D-40CD-9CC8-80EC8AE7EAF1}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>CompGraphicsLab06</RootNamespace>
     <AssemblyName>CompGraphicsLab06</AssemblyName>
@@ -53,13 +53,14 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="ObjFileHandler.cs" />
     <Compile Include="Primitives.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Projection.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RotateFigure.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
-      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

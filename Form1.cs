@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
 
 namespace CompGraphicsLab06
 {
@@ -15,6 +16,9 @@ namespace CompGraphicsLab06
         private Graphics graphics;
         private Pen pen;
         private Projection projection;
+        private List<Point3D> pointsRotate;
+        private OpenFileDialog openFileDialog1;
+        private SaveFileDialog saveFileDialog1;
 
         /// <summary>
         /// Текущий многогранник
@@ -31,6 +35,7 @@ namespace CompGraphicsLab06
             projection = new Projection();
             radioButton1.Checked = true;
             projBox.SelectedIndex = 0;
+            pointsRotate = new List<Point3D>();
         }
 
         /// <summary>
@@ -86,55 +91,38 @@ namespace CompGraphicsLab06
         {
             graphics.Clear(Color.White);
 
-            // Объявляем centerX и centerY один раз в начале метода
             var centerX = pictureBox1.Width / 2;
             var centerY = pictureBox1.Height / 2;
 
-            // Если многогранник не задан, просто рисуем оси и выходим
-            if (curPolyhedron == null)
+            if (curPolyhedron == null || curPolyhedron.IsEmpty())
             {
-                DrawAxes(centerX, centerY); // Используем объявленные выше переменные
+                DrawAxes(centerX, centerY);
                 pictureBox1.Invalidate();
                 return;
             }
 
-            // 1. Проецируем фигуру
+            // Проецируем фигуру
             pen = new Pen(Color.Black, 2);
             List<Edge> edges = projection.Project(curPolyhedron, projBox.SelectedIndex);
 
-            // 2. Расчет смещения для центрирования
-            // УДАЛЕНЫ ПОВТОРНЫЕ ОБЪЯВЛЕНИЯ var centerX = ... и var centerY = ...
+            // Для больших моделей используем фиксированное смещение
+            float offsetX = centerX;
+            float offsetY = centerY;
 
-            // Расчет центра фигуры (для смещения)
-            var figureLeftX = edges.Min(e => Math.Min(e.From.X, e.To.X));
-            var figureLeftY = edges.Min(e => Math.Min(e.From.Y, e.To.Y));
-            var figureRightX = edges.Max(e => Math.Max(e.From.X, e.To.X));
-            var figureRightY = edges.Max(e => Math.Max(e.From.Y, e.To.Y));
-
-            // Если фигура невидима (например, все точки схлопнулись), используем 0
-            float figureCenterX = (figureRightX - figureLeftX) / 2;
-            float figureCenterY = (figureRightY - figureLeftY) / 2;
-
-            // Общее смещение, которое применяем и к фигуре, и к осям
-            float offsetX = centerX - figureCenterX;
-            float offsetY = centerY - figureCenterY;
-
-
-            // 3. Рисуем Оси
+            // Рисуем оси
             DrawAxes(offsetX, offsetY);
 
-
-            // 4. Рисуем фигуру
+            // Рисуем фигуру
             foreach (Edge line in edges)
             {
-                var p1 = (line.From).ConvertToPoint();
-                var p2 = (line.To).ConvertToPoint();
+                var p1 = line.From.ConvertToPoint();
+                var p2 = line.To.ConvertToPoint();
 
-                // Применяем рассчитанное смещение
                 graphics.DrawLine(pen,
                     p1.X + offsetX, p1.Y + offsetY,
                     p2.X + offsetX, p2.Y + offsetY);
             }
+
             pictureBox1.Invalidate();
         }
 
@@ -470,7 +458,6 @@ namespace CompGraphicsLab06
             else if (rotateOZ.Checked)
                 Affine.rotateCenter(curPolyhedron, 0, 0, (float)rotateAngle.Value);
             else if (rotateOwn.Checked)
-                //"Время пострелять..."(с)
                 Affine.rotateAboutLine(curPolyhedron, (float)rotateAngle.Value, new Edge(float.Parse(rX1.Text), float.Parse(rY1.Text), float.Parse(rZ1.Text),
                     float.Parse(rX2.Text), float.Parse(rY2.Text), float.Parse(rZ2.Text)));
             Draw();
@@ -485,5 +472,212 @@ namespace CompGraphicsLab06
         {
             rotateOY.Checked = rotateOZ.Checked = rotateOX.Checked = false;
         }
+
+        // Методы для работы с OBJ файлами
+        private void loadButton_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.DefaultExt = "obj";
+            openFileDialog.Filter = "OBJ files|*.obj|All files|*.*";
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string fName = openFileDialog.FileName;
+                if (File.Exists(fName))  // Теперь File будет распознан
+                {
+                    curPolyhedron = ObjFileHandler.LoadFromObj(fName);
+                    if (curPolyhedron != null)
+                    {
+                        Draw();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Ошибка загрузки файла OBJ", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void saveButton_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+            saveFileDialog.DefaultExt = "obj";
+            saveFileDialog.Filter = "OBJ files|*.obj|All files|*.*";
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                string fName = saveFileDialog.FileName;
+                if (ObjFileHandler.SaveToObj(curPolyhedron, fName))
+                {
+                    MessageBox.Show("Файл успешно сохранен", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Ошибка сохранения файла", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        // Методы для фигуры вращения
+        private void addPointButton_Click(object sender, EventArgs e)
+        {
+            if (float.TryParse(textBoxRotateX.Text, out float x) &&
+                float.TryParse(textBoxRotateY.Text, out float y) &&
+                float.TryParse(textBoxRotateZ.Text, out float z))
+            {
+                pointsRotate.Add(new Point3D(x, y, z));
+                DrawCurve();
+            }
+            else
+            {
+                MessageBox.Show("Введите корректные числовые значения координат", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void DrawCurve()
+        {
+            graphics.Clear(Color.White);
+            int startX = pictureBox1.Width / 2;
+            int startY = pictureBox1.Height / 2;
+
+            if (pointsRotate.Count > 1)
+            {
+                for (int i = 1; i < pointsRotate.Count; i++)
+                {
+                    graphics.DrawLine(new Pen(Color.Black),
+                        startX + pointsRotate[i - 1].ConvertToPoint().X,
+                        startY + pointsRotate[i - 1].ConvertToPoint().Y,
+                        startX + pointsRotate[i].ConvertToPoint().X,
+                        startY + pointsRotate[i].ConvertToPoint().Y);
+                }
+            }
+            pictureBox1.Invalidate();
+        }
+
+        private void drawFigureRotationButton_Click(object sender, EventArgs e)
+        {
+            if (pointsRotate.Count < 2)
+            {
+                MessageBox.Show("Добавьте хотя бы 2 точки для образующей", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (int.TryParse(textBoxPartitions.Text, out int count) && count > 0)
+            {
+                string axis = comboBoxAxis.Text;
+                char axisF;
+                if (axis == "Ось Oz")
+                    axisF = 'z';
+                else if (axis == "Ось Oy")
+                    axisF = 'y';
+                else
+                    axisF = 'x';
+
+                curPolyhedron = RotateFigure.createPolyhedronForRotateFigure(pointsRotate, count, axisF);
+                Draw();
+            }
+            else
+            {
+                MessageBox.Show("Введите корректное количество разбиений", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // Метод для построения графика функции
+        private void DrawGraphic_Click(object sender, EventArgs e)
+        {
+            if (!float.TryParse(textBoxX0.Text, out float X0) ||
+                !float.TryParse(textBoxX1.Text, out float X1) ||
+                !float.TryParse(textBoxY0.Text, out float Y0) ||
+                !float.TryParse(textBoxY1.Text, out float Y1) ||
+                !int.TryParse(textBoxSplits.Text, out int cnt) || cnt <= 0)
+            {
+                MessageBox.Show("Введите корректные значения диапазонов и разбиений", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Выбор функции
+            Func<float, float, float> f;
+            switch (comboBoxFunctions.SelectedIndex)
+            {
+                case 0:
+                    f = (x, y) => (float)(Math.Cos(x * x + y * y) / (x * x + y * y + 1));
+                    break;
+                case 1:
+                    f = (x, y) => (float)(Math.Sin(x + y));
+                    break;
+                case 2:
+                    f = (x, y) => (float)(1 / (1 + x * x) + 1 / (1 + y * y));
+                    break;
+                case 3:
+                    f = (x, y) => (float)(Math.Sin(x * x + y * y));
+                    break;
+                case 4:
+                    f = (x, y) => (float)(Math.Sqrt(50 - x * x - y * y));
+                    break;
+                default:
+                    f = (x, y) => 0;
+                    break;
+            }
+
+            Graphic(X0, X1, Y0, Y1, cnt, f);
+        }
+
+        private void Graphic(float X0, float X1, float Y0, float Y1, int countSplit, Func<float, float, float> f)
+        {
+            float dx = (X1 - X0) / countSplit;
+            float dy = (Y1 - Y0) / countSplit;
+            float currentX, currentY = Y0;
+
+            List<Point3D> points = new List<Point3D>();
+
+            // Добавляем точки
+            for (int i = 0; i <= countSplit; ++i)
+            {
+                currentX = X0;
+                for (int j = 0; j <= countSplit; ++j)
+                {
+                    points.Add(new Point3D(currentX, currentY, f(currentX, currentY)));
+                    currentX += dx;
+                }
+                currentY += dy;
+            }
+
+            Polyhedron polyhedron = new Polyhedron(points);
+            int N = countSplit + 1;
+
+            // Добавляем ребра и грани
+            for (int i = 0; i < N; ++i)
+            {
+                for (int j = 0; j < N; ++j)
+                {
+                    if (j != N - 1)
+                        polyhedron.AddEdge(i * N + j, i * N + j + 1);
+                    if (i != N - 1)
+                        polyhedron.AddEdge(i * N + j, (i + 1) * N + j);
+                    if (j != N - 1 && i != N - 1)
+                    {
+                        polyhedron.AddFace(new List<int> { i * N + j, i * N + j + 1, (i + 1) * N + j, (i + 1) * N + (j + 1) });
+                    }
+                }
+            }
+
+            Affine.scaleCenter(polyhedron, 40);
+            Affine.rotateCenter(polyhedron, 60, 0, 0);
+
+            curPolyhedron = polyhedron;
+            pen.Width = 1;
+            Draw();
+        }
+
+        // Очистка точек для фигуры вращения
+        private void clearPointsButton_Click(object sender, EventArgs e)
+        {
+            pointsRotate.Clear();
+            graphics.Clear(Color.White);
+            pictureBox1.Invalidate();
+        }
+
+
+
     }
 }

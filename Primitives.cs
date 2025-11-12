@@ -25,6 +25,10 @@ namespace CompGraphicsLab06
 
         static public bool operator ==(Point3D point1, Point3D point2)
         {
+            if (ReferenceEquals(point1, point2))
+                return true;
+            if (point1 is null || point2 is null)
+                return false;
             return point1.X == point2.X && point1.Y == point2.Y && point1.Z == point2.Z;
         }
 
@@ -43,9 +47,28 @@ namespace CompGraphicsLab06
             return new Point3D(point1.X - point2.X, point1.Y - point2.Y, point1.Z - point2.Z);
         }
 
-        public Point ConvertToPoint() 
-        { 
-            return new Point((int)X, (int)Y); 
+        public override bool Equals(object obj)
+        {
+            if (obj is Point3D other)
+                return this == other;
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked // Overflow is fine, just wrap
+            {
+                int hash = 17;
+                hash = hash * 23 + X.GetHashCode();
+                hash = hash * 23 + Y.GetHashCode();
+                hash = hash * 23 + Z.GetHashCode();
+                return hash;
+            }
+        }
+
+        public Point ConvertToPoint()
+        {
+            return new Point((int)X, (int)Y);
         }
     }
 
@@ -68,29 +91,6 @@ namespace CompGraphicsLab06
             To = new Point3D(x2, y2, z2);
         }
     }
-    /// <summary>
-    /// Класс грани, заданной полигоном
-    /// </summary>
-    public class Polygon
-    {
-        public List<Point3D> Points { get; set; } = new List<Point3D>();
-
-        public Polygon(List<Point3D> points)
-        {
-            Points = points;
-        }
-
-        public void AddPoint(Point3D point)
-        {
-            Points.Add(point);
-        }
-
-        public void AddPoint(float x, float y, float z)
-        {
-            Points.Add(new Point3D(x, y, z));
-        }
-    }
-
 
     /// <summary>
     /// Класс многогранника
@@ -105,12 +105,17 @@ namespace CompGraphicsLab06
         /// <summary>
         /// Список ребер
         /// </summary>
-        public List<Edge> Edges { get; } = new List<Edge>();
+        public List<Edge> Edges { get; set; } = new List<Edge>();
+
+        /// <summary>
+        /// Список граней. Грани заданы списком вершин (вершины заданы индексами в списке вершин)
+        /// </summary>
+        public List<List<int>> Faces { get; set; } = new List<List<int>>();
 
         /// <summary>
         /// Матрица смежности - для каждой точки хранит список смежных с ней
         /// </summary>
-        public Dictionary<int, List<int>> Adjacency { get; } = new Dictionary<int, List<int>>();
+        public Dictionary<int, List<int>> Adjacency { get; set; } = new Dictionary<int, List<int>>();
 
         /// <summary>
         /// Находит центр многогранника
@@ -123,6 +128,16 @@ namespace CompGraphicsLab06
             return new Point3D(x, y, z);
         }
 
+        public bool IsEmpty() => Vertexes.Count < 1;
+
+        public void Clear()
+        {
+            Vertexes.Clear();
+            Edges.Clear();
+            Faces.Clear();
+            Adjacency.Clear();
+        }
+
         /// <summary>
         /// Конструктор многогранника от списка вершин
         /// </summary>
@@ -133,10 +148,11 @@ namespace CompGraphicsLab06
             int i = 0;
             foreach (Point3D point in points)
             {
-                i++;
                 Adjacency.Add(i, new List<int>());
+                i++;
             }
         }
+        public Polyhedron() { }
 
         /// <summary>
         /// Добавить ребро
@@ -149,11 +165,6 @@ namespace CompGraphicsLab06
                 Adjacency.Add(from, new List<int> { to });
             else
                 Adjacency[from].Add(to);
-
-           /* if (!Adjacency.ContainsKey(index2))
-                Adjacency.Add(index2, new List<int> { index1 });
-            else
-                Adjacency[index2].Add(index1);*/
         }
 
         /// <summary>
@@ -165,6 +176,15 @@ namespace CompGraphicsLab06
         {
             foreach (int to in lst)
                 AddEdge(from, to);
+        }
+
+        /// <summary>
+        /// Добавляет грань
+        /// </summary>
+        /// <param name="lst"></param>
+        public void AddFace(List<int> lst)
+        {
+            Faces.Add(lst);
         }
     }
 }

@@ -8,10 +8,9 @@ namespace CompGraphicsLab06
 {
     class Affine
     {
-        static private float[,] matrixColumnFromPoint3D(Point3D point)
+        static public float[,] matrixColumnFromPoint3D(Point3D point)
         {
             return new float[,] { { point.X }, { point.Y }, { point.Z }, { 1 } };
-
         }
 
         /// <summary>
@@ -220,4 +219,6 @@ private static Point3D rotatePoint(Point3D point, float angleX, float angleY, fl
     return temp.Vertexes[0];
 }
     }
+
 }
+
